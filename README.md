@@ -1,5 +1,8 @@
 #Basic REST-API Server documentation
 
+NOTE: Token validity for authentication is valid for 30 minutes. If a "no token" message appears after you have made a 
+request, you have to return to the /login endpoint to get a new token. 
+
 ##Admin
 
 ### Login
@@ -16,7 +19,7 @@ Response:
 }
 ```
 
-Using this token, we can then request for subseqeunt information.
+Using this token, we can then request for subsequent information.
 
 ###To request user information (as admin):
 ```bash
@@ -347,3 +350,87 @@ lists all users:
     ]
 }
 ```
+
+###Attempting to create when exceeding quota:
+Before:
+```json
+{
+    "resources": [
+        {
+            "id": 1,
+            "text": "resource",
+            "user_id": 2
+        },
+        {
+            "id": 4,
+            "text": "Creating new resource",
+            "user_id": 1
+        },
+        {
+            "id": 5,
+            "text": "newly added resource",
+            "user_id": 3
+        }
+    ]
+}
+```
+User David (user_id) creates a new resource using the following command:
+```bash
+curl -X POST \
+  http://127.0.0.1:5000/resource \
+  -H 'Authorization: Basic RGF2aWQ6MTIz' \
+  -H 'Content-Type: application/json' \
+  -H 'Postman-Token: 1fb20790-5969-4def-99fb-e181bd18792d' \
+  -H 'cache-control: no-cache' \
+  -H 'x-access-token: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJwdWJsaWNfaWQiOiIxZWRjZDQyNS03ZjJjLTQ3MmEtODgxNS0wZTUyYjQ1ZDcyMmEiLCJleHAiOjE1NDk1NDMyNDN9.QlN0fWG2eDXLQJisyHjSmtWHuK19nmu_e3uVDyya-lw' \
+  -d '{"text":"David'\''s 2nd resource"}'
+```
+
+The resources are now:
+```json
+{
+    "resources": [
+        {
+            "id": 1,
+            "text": "resource",
+            "user_id": 2
+        },
+        {
+            "id": 4,
+            "text": "Creating new resource",
+            "user_id": 1
+        },
+        {
+            "id": 5,
+            "text": "newly added resource",
+            "user_id": 3
+        },
+        {
+            "id": 6,
+            "text": "David's 2nd resource",
+            "user_id": 2
+        }
+    ]
+}
+```
+
+Now, user David tries to create another resource (when his quota is set to be 2). When posting the following command:
+```bash
+curl -X POST \
+  http://127.0.0.1:5000/resource \
+  -H 'Authorization: Basic RGF2aWQ6MTIz' \
+  -H 'Content-Type: application/json' \
+  -H 'Postman-Token: 5a73dc8c-7c6a-423d-bd3a-b1298a76e020' \
+  -H 'cache-control: no-cache' \
+  -H 'x-access-token: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJwdWJsaWNfaWQiOiIxZWRjZDQyNS03ZjJjLTQ3MmEtODgxNS0wZTUyYjQ1ZDcyMmEiLCJleHAiOjE1NDk1NDMyNDN9.QlN0fWG2eDXLQJisyHjSmtWHuK19nmu_e3uVDyya-lw' \
+  -d '{"text":"David'\''s 3rd resource"}'
+```
+
+The response is:
+```json
+{
+    "message": "Invalid request: Resource quota reached."
+}
+```
+
+The server does not allow the user to create any new resources (because the quota has exceeded)
