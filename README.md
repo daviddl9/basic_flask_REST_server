@@ -3,6 +3,19 @@
 NOTE: Token validity for authentication is valid for 30 minutes. If a "no token" message appears after you have made a 
 request, you have to return to the /login endpoint to get a new token. 
 
+## Features
+Provides basic functionality as follows:
+1. Create new user (admin)
+2. Create new resource (admin + user)
+3. Delete own resource (user)
+4. Delete any resource (admin)
+5. Delete user (admin)
+6. List all resources (admin)
+7. List personal resources (user)
+8. Promote user to admin (admin)
+9. Set quota on user (admin)
+10. Use authentication using user and password
+
 ##Admin
 
 ### Login
