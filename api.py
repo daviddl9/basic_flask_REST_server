@@ -24,6 +24,9 @@ class User(db.Model):
     name = db.Column(db.String(50))
     password = db.Column(db.String(80))
     admin = db.Column(db.Boolean)
+    has_quota = db.Column(db.Boolean, default=False)
+    quota = db.Column(db.Integer)
+    resource_count = db.Column(db.Integer)
 
 
 def token_required(f):
@@ -67,7 +70,10 @@ def get_all_users(current_user):
             'public_id':user.public_id,
             'name' : user.name,
             'password' : user.password,
-            'admin' : user.admin
+            'admin' : user.admin,
+            'has_quota': user.has_quota,
+            'quota': user.quota,
+            'resource_count': user.resource_count
         }
         output.append(user_data)
     return jsonify({
@@ -94,7 +100,10 @@ def get_one_user(current_user, public_id):
         'public_id' : user.public_id,
         'name' : user.name,
         'password' : user.password,
-        'admin' : user.admin
+        'admin' : user.admin,
+        'has_quota': user.has_quota,
+        'quota':user.quota,
+        'resource_count': user.resource_count
     }
 
     return jsonify({
@@ -110,12 +119,43 @@ def create_user(current_user):
         })
     data = request.get_json()
     hashed_password = generate_password_hash(data['password'], method='sha256')
-    new_user = User(public_id=str(uuid.uuid4()), name=data['name'], password=hashed_password, admin=False)
+    new_user = User(public_id=str(uuid.uuid4()), name=data['name'], password=hashed_password, admin=False, has_quota=False,resource_count=0)
     db.session.add(new_user)
     db.session.commit()
 
     return jsonify({
         'message': 'New user created!'
+    })
+
+@app.route('/user/setquota/<public_id>', methods=['PUT'])
+@token_required
+def setQuota(current_user, public_id):
+    if not current_user.admin:
+        return jsonify({
+            'message':'Unauthorised: No admin permissions'
+        })
+    data = request.get_json()
+
+    if not data:
+        return jsonify({
+            'message' : 'Invalid quota'
+        })
+
+    quota = int(data['quota'])
+
+    user = User.query.filter_by(public_id=public_id).first()
+
+    if not user:
+        return jsonify({
+            'message':'No such user found!'
+        })
+
+    user.has_quota = True
+    user.quota = quota
+    db.session.commit()
+
+    return jsonify({
+        'message':'Quota set!'
     })
 
 @app.route('/user/<public_id>', methods=['PUT'])
@@ -179,7 +219,7 @@ def login():
     if check_password_hash(user.password, auth.password):
         token = jwt.encode({
             'public_id':user.public_id,
-            'exp':datetime.datetime.utcnow() + datetime.timedelta(minutes=10)
+            'exp':datetime.datetime.utcnow() + datetime.timedelta(minutes=30)
         }, app.config['SECRET_KEY'])
         return jsonify({
             'token' : token.decode('UTF-8')
@@ -189,6 +229,28 @@ def login():
         'message' : 'Could not verify user'
     })
 
+
+@app.route('/resource/all', methods=['GET'])
+@token_required
+def admin_list_all_resources(current_user):
+    if not current_user.admin:
+        return jsonify({
+            'message' : 'No permissions to view all resources'
+        })
+    resources = Resource.query.all()
+
+    output = []
+
+    for resource in resources:
+        resource_data = {
+            'id' : resource.id,
+            'text' : resource.text,
+            'user_id' : resource.user_id
+        }
+        output.append(resource_data)
+    return jsonify({
+        'resources' : output
+    })
 
 @app.route('/resource', methods=['GET'])
 @token_required
@@ -204,6 +266,7 @@ def get_all_resources(current_user):
             'user_id' : resource.user_id
         }
         output.append(resource_data)
+
     return jsonify({
         'resources' : output
     })
@@ -213,7 +276,7 @@ def get_all_resources(current_user):
 def get_one_resource(current_user, resource_id):
     resource = Resource.query.filter_by(id=resource_id, user_id=current_user.id).first()
     if not resource:
-        if (current_user.admin):
+        if current_user.admin:
             resource = Resource.query.filter_by(id=resource_id).first()
             if resource:
                 return jsonify({
@@ -236,6 +299,14 @@ def get_one_resource(current_user, resource_id):
 def create_resource(current_user):
     data = request.get_json()
     new_resource = Resource(text=data['text'], user_id=current_user.id)
+
+    if current_user.has_quota:
+        if current_user.resource_count == current_user.quota:
+            return jsonify({
+                'message' : 'Invalid request: Resource quota reached.'
+            })
+
+    current_user.resource_count += 1
     db.session.add(new_resource)
     db.session.commit()
 
@@ -248,9 +319,12 @@ def create_resource(current_user):
 def user_delete_resource(current_user, resource_id):
     resource = Resource.query.filter_by(id=resource_id, user_id=current_user.id).first()
     if not resource:
+        # If admin can access the resource
         if (current_user.admin):
             resource = Resource.query.filter_by(id=resource_id).first()
             if resource:
+                user = User.query.filter_by(id=resource.user_id).first()
+                user.resource_count -= 1
                 db.session.delete(resource)
                 db.session.commit()
                 return jsonify({
@@ -259,16 +333,13 @@ def user_delete_resource(current_user, resource_id):
         return jsonify({
             'message': 'No such resource'
         })
+
+    current_user.resource_count -= 1
     db.session.delete(resource)
     db.session.commit()
     return jsonify({
         'message': 'Resource deleted by user'
     })
-
-@app.route('/resource/<resource_id>', methods=['DELETE'])
-@token_required
-def admin_delete_resource(current_user, todo_id):
-    return ''
 
 if __name__ == '__main__':
     app.run(debug=True)
