@@ -1,4 +1,4 @@
-#Basic REST-API Server documentation
+# Basic REST-API Server documentation
 
 NOTE: Token validity for authentication is valid for 30 minutes. If a "no token" message appears after you have made a 
 request, you have to return to the /login endpoint to get a new token. 
@@ -16,7 +16,7 @@ Provides basic functionality as follows:
 9. Set quota on user (admin)
 10. Use authentication using user and password
 
-##Admin
+## Admin
 
 ### Login
 ```bash
@@ -34,7 +34,7 @@ Response:
 
 Using this token, we can then request for subsequent information.
 
-###To request user information (as admin):
+### To request user information (as admin):
 ```bash
 curl -X GET \
   http://127.0.0.1:5000/user \
@@ -70,7 +70,7 @@ Here is the result:
 }
 ```
 
-###Request all resources (Admin)
+### Request all resources (Admin)
 ```bash
 curl -X GET \
   http://127.0.0.1:5000/resource \
@@ -218,7 +218,7 @@ Final State (send request to list users again):
     ]
 }
 ```
-###Create new User
+### Create new User
 ```bash
 curl -X POST \
   http://127.0.0.1:5000/user \
@@ -272,7 +272,7 @@ After listing users, we get:
 ```
 
 ## User
-###Login
+### Login
 ```bash
 curl -X GET \
   http://127.0.0.1:5000/login \
@@ -364,7 +364,7 @@ lists all users:
 }
 ```
 
-###Attempting to create when exceeding quota:
+### Attempting to create when exceeding quota:
 Before:
 ```json
 {
