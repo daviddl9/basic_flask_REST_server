@@ -14,7 +14,7 @@ Provides basic functionality as follows:
 7. List personal resources (user)
 8. Promote user to admin (admin)
 9. Set quota on user (admin)
-10. Use authentication using user and password
+10. Authentication using username and password
 
 ## Admin
 
